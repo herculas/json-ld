@@ -6,10 +6,9 @@
  * A URI can be further classified as a locator, a name, or both. The term "Uniform Resource Locator" (URL) refers to
  * the subset of URIs that, in addition to identifying a resource, provide a means of locating the resource by
  * describing its primary access mechanism (e.g., its network "location"). The term "Uniform Resource Name" (URN) has
- * been used historically to refer to both URIs under the "urn" scheme
- * {@link https://datatracker.ietf.org/doc/html/rfc2141 | RFC-2141}, which are required to remain globally unique and
- * persistent even when the resource ceases to exist or becomes unavailable, and to any other URI with the properties
- * of a name.
+ * been used historically to refer to both URIs under the "urn" scheme [RFC-2141], which are required to remain globally
+ * unique and persistent even when the resource ceases to exist or becomes unavailable, and to any other URI with the
+ * properties of a name.
  *
  * An individual scheme does not have to be classified as being just one of "locator" or "name". Instances of URIs from
  * any given scheme may have the characteristics of locators or names or both, often depending on the persistence and
@@ -79,6 +78,7 @@
  * ```
  *
  * @see https://datatracker.ietf.org/doc/html/rfc3986
+ * @see https://datatracker.ietf.org/doc/html/rfc2141
  *
  * @example "ftp://ftp.is.co.za/rfc/rfc1808.txt"
  * @example "http://www.ietf.org/rfc/rfc2396.txt"
@@ -321,11 +321,9 @@ export type IRICompacted = string
  * and deactivated. In a specific DID method scheme, the DID method name follows the first colon and terminates with the
  * second colon, e.g., `did:method-name:`.
  *
- * The generic DID scheme is a URI scheme conformant with
- * {@link https://datatracker.ietf.org/doc/html/rfc3986 | RFC-3986}. The ABNF definition can be found below, which uses
- * the syntax in {@link https://datatracker.ietf.org/doc/html/rfc5234 | RFC-5234} and the corresponding definitions for
- * `ALPHA` and `DIGIT`. All other rule names not defined in the ABNF below are defined in
- * {@link https://datatracker.ietf.org/doc/html/rfc3986 | RFC-3986}.
+ * The generic DID scheme is a URI scheme conformant with [RFC-3986]. The ABNF definition can be found below, which uses
+ * the syntax in [RFC-5234] and the corresponding definitions for `ALPHA` and `DIGIT`. All other rule names not defined
+ * in the ABNF below are defined in [RFC-3986].
  *
  * All DIDs MUST conform to the DID Syntax ABNF Rules defined below:
  *
@@ -343,6 +341,8 @@ export type IRICompacted = string
  * @see https://www.w3.org/TR/did-core/#dfn-decentralized-identifiers
  * @see https://www.w3.org/TR/did-core/#dfn-did-schemes
  * @see https://www.w3.org/TR/did-core/#dfn-did-methods
+ * @see https://datatracker.ietf.org/doc/html/rfc3986
+ * @see https://datatracker.ietf.org/doc/html/rfc5234
  *
  * @example "did:example:123456789abcdefghi"
  */
@@ -353,9 +353,8 @@ export type DID = URI
  * representations of DID subjects, verification methods, services, specific parts of a DID document, or other
  * resources.
  *
- * The following is the ABNF definition of a DID URL, which uses the syntax in
- * {@link https://datatracker.ietf.org/doc/html/rfc5234 | RFC-5234}. It builds on the `did` syntax. The `path-abempty`,
- * `query`, and `fragment` components are defined in {@link https://datatracker.ietf.org/doc/html/rfc3986 | RFC-3986}.
+ * The following is the ABNF definition of a DID URL, which uses the syntax in [RFC-5234]. It builds on the `did`
+ * syntax. The `path-abempty`, `query`, and `fragment` components are defined in [RFC-3986].
  *
  * All DID URLs MUST conform to the DID URL Syntax ABNF Rules defined below:
  *
@@ -365,6 +364,8 @@ export type DID = URI
  *
  * @see https://www.w3.org/TR/did-core
  * @see https://www.w3.org/TR/did-core/#did-url-syntax
+ * @see https://datatracker.ietf.org/doc/html/rfc3986
+ * @see https://datatracker.ietf.org/doc/html/rfc5234
  *
  * @example "did:example:123?service=agent&relativeRef=/credentials#degree"
  * @example "did:example:123?versionTime=2021-05-10T17:00:00Z"
@@ -391,12 +392,15 @@ export type DateTime = string
  * When used as the prefix in a Compact IRI, to avoid the potential ambiguity of a prefix being confused with an IRI
  * scheme, terms SHOULD NOT come from the list of URI schemes as defined in [IANA-URI-SCHEMES]. Similarly, to avoid
  * confusion between a Compact IRI and a term, terms SHOULD NOT include a colon (`:`) and SHOULD be restricted to the
- * form of `isegment-nz-nc` as defined in [RFC3987].
+ * form of `isegment-nz-nc` as defined in [RFC-3987].
  *
  * To avoid forward-compatibility issues, a term SHOULD NOT start with an `@` character followed exclusively by one or
- * more `ALPHA` characters (see [RFC5234]) as future versions of JSON-LD may introduce additional keywords. Furthermore,
- * the term MUST NOT be an empty string ("") as not all programming languages are able to handle empty JSON keys.
+ * more `ALPHA` characters (see [RFC-5234]) as future versions of JSON-LD may introduce additional keywords.
+ * Furthermore, the term MUST NOT be an empty string ("") as not all programming languages are able to handle empty JSON
+ * keys.
  *
  * @see https://www.w3.org/TR/json-ld11/#terms
+ * @see https://datatracker.ietf.org/doc/html/rfc3987
+ * @see https://datatracker.ietf.org/doc/html/rfc5234
  */
 export type Term = string

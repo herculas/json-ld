@@ -8,7 +8,7 @@
  *
  * Implementations MUST generate only well-formed triples and graph names:
  *
- * - An IRI is well-formed if it matches the ABNF for IRI as described in [RFC3987].
+ * - An IRI is well-formed if it matches the ABNF for IRI as described in [RFC-3987].
  * - A blank node identifier is well-formed if it matches the EBNF for BLANK_NODE_LABEL as described in [Turtle].
  * - A literal is well-formed if it has the lexical form of a string, any datatype IRI is well-formed, and any language
  *   tag is well-formed according to section 2.2.9 of [BCP47].
