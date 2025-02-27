@@ -4,8 +4,8 @@
  * Within local contexts and expanded term definitions, keyword aliases MAY NOT used.
  */
 
-import { IRI, IRICompacted, IRIReference, Term } from "./basic.ts"
 import { ContextDefinition } from "./context.ts"
+import { IRI, IRICompacted, IRIReference, Term } from "./basic.ts"
 import { JsonObject, JsonPrimitive, Null, OneOrMany, OneOrWrapped } from "./document.ts"
 import { NodeObject, ValueObject } from "./object.ts"
 
@@ -122,7 +122,7 @@ export type Graph = OneOrMany<ValueObject | NodeObject>
  * @see https://www.w3.org/TR/json-ld11/#compact-iris
  * @see https://www.w3.org/TR/json-ld11/#identifying-blank-nodes
  */
-export type Id = IRIReference | IRICompacted
+export type Id = OneOrMany<IRIReference | IRICompacted>
 
 /**
  * The unaliased `@import` keyword MAY be used in a context definition.
@@ -242,6 +242,19 @@ export type List = OneOrMany<JsonPrimitive | NodeObject | ValueObject>
 export type Nest = JsonObject
 
 /**
+ * The `@none` keyword MAY be aliased and MAY be used as a key in an index map, id map, language map, type map.
+ *
+ * @see https://www.w3.org/TR/json-ld11/#keywords
+ * @see https://www.w3.org/TR/json-ld11/#data-indexing
+ * @see https://www.w3.org/TR/json-ld11/#language-indexing
+ * @see https://www.w3.org/TR/json-ld11/#node-identifier-indexing
+ * @see https://www.w3.org/TR/json-ld11/#node-type-indexing
+ * @see https://www.w3.org/TR/json-ld11/#named-graph-indexing
+ * @see https://www.w3.org/TR/json-ld11/#named-graph-data-indexing
+ */
+export type None = "@none"
+
+/**
  * The unaliased `@prefix` keyword MAY be used as a key in an expanded term definition. Its value MUST be `true` or
  * `false`.
  *
@@ -316,9 +329,7 @@ export type Protected = boolean
  * @see https://www.w3.org/TR/json-ld11/#keywords
  * @see https://www.w3.org/TR/json-ld11/#reverse-properties
  */
-export type Reverse = IRIReference | IRICompacted | {
-  [key: string]: OneOrMany<IRIReference | IRICompacted | JsonObject>
-}
+export type Reverse = IRIReference | IRICompacted
 
 /**
  * The `@set` keyword MAY be aliased and MUST be used as a key in a set object. Its value MUST be one of the following:
@@ -354,10 +365,7 @@ export type UnorderedSet = OneOrMany<JsonPrimitive | NodeObject | ValueObject>
  *
  * @see https://www.w3.org/TR/json-ld11/#keywords
  */
-export type Type =
-  | OneOrMany<Term | IRIReference | IRICompacted>
-  | "@id"
-  | "@vocab"
+export type Type = Term | IRIReference | IRICompacted
 
 /**
  * The `@value` keyword MAY be aliased and MUST be used as a key in a value object. Its value key MUST be either a

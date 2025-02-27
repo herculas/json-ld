@@ -12,6 +12,7 @@ import {
   Reverse,
   Type,
   UnorderedSet,
+  Value,
 } from "./keyword.ts"
 import { IdMap, IndexMap, LanguageMap, TypeMap } from "./map.ts"
 import { JsonArray, JsonObject, JsonPrimitive, OneOrMany } from "./document.ts"
@@ -87,9 +88,9 @@ export interface NodeObject {
   "@id"?: Id
   "@included"?: Included
   "@graph"?: Graph
-  "@nest"?: Nest
-  "@type"?: Type
-  "@reverse"?: Reverse
+  "@nest"?: OneOrMany<Nest>
+  "@type"?: OneOrMany<Type>
+  "@reverse"?: { [key: string]: OneOrMany<Reverse | NodeObject> }
   "@index"?: Index
   [key: string]:
     | OneOrMany<
@@ -192,14 +193,14 @@ export type ValueObject =
     "@context"?: Context
   }
   & ({
-    "@value": JsonPrimitive
+    "@value": Value
     "@language"?: Language
     "@direction"?: Direction
   } | {
-    "@value": JsonPrimitive
+    "@value": Value
     "@type": Type
   } | {
-    "@value": JsonPrimitive | JsonObject | JsonArray
+    "@value": Value | JsonObject | JsonArray
     "@type": Json
   })
 

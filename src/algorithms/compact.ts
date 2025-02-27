@@ -1,3 +1,5 @@
+import { Context } from "../types/keyword.ts"
+
 /**
  * This algorithm compacts a JSON-LD document, such that the given context is applied. This must result in shortening
  * any applicable IRIs to terms or compact IRIs, any applicable keywords to keyword aliases, and any applicable JSON-LD
@@ -15,19 +17,19 @@
  *    Values will be converted to compacted form via the Value Compaction algorithm. Some data will be reshaped based on
  *    container mapping specified in the context such as `@index` or `@language` maps.
  *
- * @param activeContext The active context to use.
- * @param activeProperty The active property to use.
- * @param element The element to be compacted.
+ * @param {Context} activeContext The active context to use.
+ * @param {string} activeProperty The compacted property associated with the element to be compacted.
+ * @param {unknown} element The element to be compacted.
  * @param {boolean} [compactArrays] A flag to enable compaction of arrays to a single item when appropriate.
  * @param {boolean} [ordered] A flag to enable compaction of arrays to be ordered lexicographically by their keys.
  */
-function compact(
-  activeContext: string,
+async function compact(
+  activeContext: Context,
   activeProperty: string,
-  element: any,
+  element: unknown,
   compactArrays: boolean = false,
   ordered: boolean = false,
-) {
+): Promise<unknown> {
   // Procedure:
   //
   // 1. Initialize `typeScopedContext` to `activeContext`. This is used for compacting values that may be relevant to
@@ -48,6 +50,32 @@ function compact(
   //         `@list` or `@set`, return `result`.
   //    3.4. Otherwise, return the value in `result`.
   //
+  const typeScopedContext = activeContext
+  if (typeof element === "string" || typeof element === "number" || typeof element === "boolean" || element === null) {
+    return element
+  }
+  if (Array.isArray(element)) {
+    const result = []
+    for (const item of element) {
+      const compactedItem = await compact(typeScopedContext, activeProperty, item, compactArrays, ordered)
+      if (compactedItem !== null) {
+        result.push(compactedItem)
+      }
+    }
+    if (
+      result.length === 0 ||
+      result.length > 1 ||
+      !compactArrays ||
+      activeProperty === "@graph" ||
+      activeProperty === "@set" ||
+      activeContext[activeProperty]?.includes("@list") ||
+      activeContext[activeProperty]?.includes("@set")
+    ) {
+      return result
+    }
+    return result[0]
+  }
+
   // 4. Otherwise `element` is a map.
   // 5. If `activeContext` has a previous context, the `activeContext` is not propagated. If `element` does not contain
   //    an `@value` entry, and `element` does not consist of a single `@id` entry, set `activeContext` to
