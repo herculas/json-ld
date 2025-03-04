@@ -1,13 +1,40 @@
+import { ContextDefinition } from "./context.ts"
+import { IRI, IRICompacted, IRIReference, Term } from "./basic.ts"
+import { JsonObject, JsonPrimitive, OneOrMany, OneOrWrapped } from "./document.ts"
+import { NodeObject, ValueObject } from "./object.ts"
+
 /**
  * Within node objects, value objects, graph objects, list objects, set objects, and nested properties keyword aliases
  * MAY be used instead of the corresponding keyword, except for `@context`. The `@context` keyword MUST NOT be aliased.
  * Within local contexts and expanded term definitions, keyword aliases MAY NOT used.
+ *
+ * @see https://www.w3.org/TR/json-ld11/#keywords
  */
-
-import { ContextDefinition } from "./context.ts"
-import { IRI, IRICompacted, IRIReference, Term } from "./basic.ts"
-import { JsonObject, JsonPrimitive, Null, OneOrMany, OneOrWrapped } from "./document.ts"
-import { NodeObject, ValueObject } from "./object.ts"
+export const Keywords = [
+  "@base",
+  "@container",
+  "@context",
+  "@direction",
+  "@graph",
+  "@id",
+  "@import",
+  "@included",
+  "@index",
+  "@json",
+  "@language",
+  "@list",
+  "@nest",
+  "@none",
+  "@prefix",
+  "@propagate",
+  "@protected",
+  "@reverse",
+  "@set",
+  "@type",
+  "@value",
+  "@version",
+  "@vocab",
+]
 
 /**
  * The unaliased `@base` keyword MAY be used as a key in a context definition.
@@ -19,7 +46,7 @@ import { NodeObject, ValueObject } from "./object.ts"
  *
  * @see https://www.w3.org/TR/json-ld11/#keywords
  */
-export type Base = Null | IRIReference
+export type Base = IRIReference | null
 
 /**
  * The unaliased `@container` keyword MAY be used as a key in an expanded term definition.
@@ -34,11 +61,14 @@ export type Base = Null | IRIReference
  *
  * @see https://www.w3.org/TR/json-ld11/#keywords
  */
-export type Container = Null | OneOrWrapped<"@list" | "@set" | ContainerValue> | ContainerValueCombined
-type ContainerValue = "@language" | "@index" | "@id" | "@graph" | "@type"
-type ContainerValueCombined =
-  | ["@set", ContainerValue]
-  | [ContainerValue, "@set"]
+export type Container =
+  | OneOrWrapped<"@list" | "@set" | ContainerValueSingle>
+  | ContainerValueCombinedCase1
+  | ContainerValueCombinedCase2
+  | null
+type ContainerValueSingle = "@language" | "@index" | "@id" | "@graph" | "@type"
+type ContainerValueCombinedCase1 = ["@set", ContainerValueSingle] | [ContainerValueSingle, "@set"]
+type ContainerValueCombinedCase2 =
   | ["@set", "@graph", "@id" | "@index"]
   | ["@set", "@id" | "@index", "@graph"]
   | ["@graph", "@set", "@id" | "@index"]
@@ -68,7 +98,7 @@ type ContainerValueCombined =
  *
  * @see https://www.w3.org/TR/json-ld11/#keywords
  */
-export type Context = OneOrMany<Null | IRIReference | ContextDefinition>
+export type Context = OneOrMany<IRIReference | ContextDefinition | null>
 
 /**
  * It is possible to annotate a string, or language-tagged string, with its base direction. As with language, it is
@@ -86,7 +116,7 @@ export type Context = OneOrMany<Null | IRIReference | ContextDefinition>
  * @see https://www.w3.org/TR/json-ld11/#keywords
  * @see https://www.w3.org/TR/json-ld11/#base-direction
  */
-export type Direction = Null | "ltr" | "rtl"
+export type Direction = "ltr" | "rtl" | null
 
 /**
  * At times, it is necessary to make statements about a graph itself, rather than just a single node. This can be done
@@ -203,7 +233,7 @@ export type Json = "@json"
  * @see https://www.w3.org/TR/json-ld11/#keywords
  * @see https://www.w3.org/TR/json-ld11/#string-internationalization
  */
-export type Language = string | Null
+export type Language = string | null
 
 /**
  * The `@list` keyword MAY be aliased and MUST be used as a key in a list object.
@@ -376,12 +406,13 @@ export type Type = Term | IRIReference | IRICompacted
 export type Value = JsonPrimitive
 
 /**
- * The unaliased `@version` keyword MAY be used as a key in a context definition. Its value MUST be a number with the
- * value `1.1`.
+ * The unaliased `@version` keyword MAY be used as a key in a context definition.
+ *
+ * For compliance with the JSON-LD-1.1 specification, its value MUST be a number with the value `1.1`.
  *
  * @see https://www.w3.org/TR/json-ld11/#keywords
  */
-export type Version = 1.1 | "1.1"
+export type Version = 1.0 | 1.1 | "1.0" | "1.1"
 
 /**
  * The unaliased `@vocab` keyword MAY be used as a key in a context definition or as the value of `@type` in an expanded
@@ -394,4 +425,4 @@ export type Version = 1.1 | "1.1"
  *
  * @see https://www.w3.org/TR/json-ld11/#keywords
  */
-export type Vocab = IRIReference | IRICompacted | Term | Null
+export type Vocab = IRIReference | IRICompacted | Term | null

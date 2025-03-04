@@ -1,36 +1,24 @@
+import {
+  ActiveContext,
+  AnyMap,
+  ContainerMap,
+  ContextDefinition,
+  InverseContext,
+  LanguageMap,
+  TermDefinition,
+  TypeLanguageMap,
+  TypeMap,
+} from "../types/context.ts"
+import { IRI, Term } from "../types/basic.ts"
+import { Keywords } from "../types/keyword.ts"
+import { checkVersion } from "../utils/context.ts"
+import { expandIri } from "./expand.ts"
+import { isAbsoluteIri, isContainer } from "../utils/type.ts"
+
 /**
  * When processing a JSON-LD data structure, each processing rule is applied using information provided by the active
  * context. An active context is a context that is used to resolve terms while the processing algorithm is running. This
  * function describes how to produce an active context.
- *
- * The active context consists of:
- *
- * - the active term definitions which specify how keys and values have to be interpreted (array of term definitions),
- * - the current base IRI (IRI),
- * - the original base URL (IRI),
- * - an inverse context (inverse context),
- * - an optional vocabulary mapping (IRI),
- * - an optional default language (string),
- * - an optional default direction ("ltr" or "rtl"), and
- * - an optional previous context (context), used when a non-propagated context is defined.
- *
- * Each term definition consists of:
- *
- * - an IRI mapping (IRI),
- * - a prefix flag (boolean),
- * - a protected flag (boolean),
- * - a reverse property flag (boolean),
- * - an optional base URL (IRI),
- * - an optional context (context),
- * - an optional container mapping (array of strings),
- * - an optional direction mapping ("ltr" or "rtl"),
- * - an optional index mapping (string),
- * - an optional language mapping (string),
- * - an optional nest value (string), and
- * - an optional type mapping (IRI).
- *
- * A term definition cannot only be used to map a term to an IRI, but also to map a term to a keyword, in which case it
- * is referred to as a keyword alias.
  *
  * When processing, active context is initialized with a `null` inverse context, without any term definitions,
  * vocabulary mapping, default base direction, or default language. If a local context is encountered during processing,
@@ -82,10 +70,10 @@
  * @returns The new active context.
  */
 function processContext(
-  activeContext: string,
-  localContext: string,
+  activeContext: ActiveContext,
+  localContext: ContextDefinition,
   baseURL: string,
-  remoteContexts: string[] = [],
+  remoteContexts: Array<string> = [],
   overrideProtected: boolean = false,
   propagate: boolean = true,
   validateScopedContext: boolean = true,
@@ -218,7 +206,8 @@ function processContext(
   //         `result` for `activeContext`, `context` for `localContext`, `key`, `defined`, `baseURL`, the value of the
   //         `@protected` entry from `context`, if any, for `protected`, `overrideProtected`, and a copy of
   //         `remoteContexts`.
-  //    5.14. Return `result`.
+  //
+  // 6. Return `result`.
 }
 
 /**
@@ -235,25 +224,25 @@ function processContext(
  * term is taken into account, creating the appropriate IRI mapping, container mapping, and type mapping, language
  * mapping, or direction mapping for the term.
  *
- * @param activeContext The active context.
+ * @param {ActiveContext} activeContext The active context.
  * @param localContext The local context being processed.
- * @param term The term to define.
+ * @param {Term} term The term to define.
  * @param defined A map of defined term mappings.
- * @param baseURL The base URL used when resolving relative context URLs.
+ * @param {IRI | null} baseURL The base URL used when resolving relative context URLs.
  * @param {boolean} [termProtected] Whether or not the term is protected.
  * @param {boolean} [overrideProtected] Whether or not protected terms can be overridden.
  * @param {string[]} [remoteContexts] An array used to detect cyclic context inclusions.
  * @param {boolean} [validateScopedContext] Used to limit recursion when validating possibly recursive scoped contexts.
  */
 function createTermDefinition(
-  activeContext: string,
-  localContext: string,
-  term: string,
-  defined: object,
-  baseURL: string | null = null,
+  activeContext: ActiveContext,
+  localContext: ContextDefinition,
+  term: Term,
+  defined: Map<Term, boolean>,
+  baseURL: IRI | null = null,
   termProtected: boolean = false,
   overrideProtected: boolean = false,
-  remoteContexts: string[] = [],
+  remoteContexts: Array<string> = [],
   validateScopedContext: boolean = true,
 ) {
   // Procedure:
@@ -444,6 +433,284 @@ function createTermDefinition(
   //
   // 28. Set the term definition of `term` in `activeContext` to `definition` and set the value associated with
   //     `defined`'s entry `term` to `true`.
+
+  // 1: check if the `term` has already been defined
+  if (defined.has(term)) {
+    if (defined.get(term) === true) return
+    else if (defined.get(term) === false) throw new Error("Cyclic IRI mapping detected.")
+  }
+
+  // 2: the `term` cannot be an empty string
+  if (term === "") throw new Error("Invalid term definition.")
+  defined.set(term, false)
+
+  // 3: initialize `value`
+  let value = localContext[term]
+
+  // 4: `term` is `@type`
+  if (term === "@type") {
+    if (activeContext.processingMode && checkVersion(activeContext.processingMode, 1.0)) {
+      throw new Error("Keyword redefinition error.")
+    }
+    if (
+      typeof value !== "object" || value === null ||
+      Object.keys(value).some((key) => !["@container", "@protected"].includes(key)) ||
+      (value["@container"] && value["@container"] !== "@set") ||
+      (value["@protected"] !== undefined && typeof value["@protected"] !== "boolean")
+    ) {
+      throw new Error("Keyword redefinition error.")
+    }
+  } // 5: `term` MUST NOT be a keyword
+  else {
+    if (Keywords.includes(term)) {
+      throw new Error("Keyword redefinition error.")
+    } else if (term.match(/^@[a-zA-Z]+$/)) {
+      // TODO: magic number of regex keyword
+      // TODO: warning
+      console.warn(`Terms beginning with "@" are reserved for future use.`)
+      return
+    }
+  }
+
+  // 6: initialize previous definition
+  const previousDefinition = activeContext.termDefinitions.get(term)
+  if (previousDefinition) {
+    activeContext.termDefinitions.delete(term)
+  }
+
+  // 7 & 8: `value` is `null` or a string
+  let simpleTerm = false
+  if (value === null || typeof value === "string") {
+    simpleTerm = true
+    value = { "@id": value }
+  } // 9: otherwise, `value` should be a map
+  else if (typeof value !== "object") {
+    throw new Error("Invalid term definition.")
+  }
+
+  // 10: create a new term definition
+  const definition: TermDefinition = {
+    "@id": "",
+    "@base": "",
+    "@prefix": false,
+    "@protected": termProtected,
+    "@reverse": false,
+  }
+
+  // 11: `value` contains an `@protected` entry
+  if ("@protected" in value && Object.hasOwn(value, "@protected")) {
+    if (typeof value["@protected"] !== "boolean") {
+      throw new Error("Invalid @protected value.")
+    }
+    definition["@protected"] = value["@protected"]
+    if (activeContext.processingMode && checkVersion(activeContext.processingMode, 1.0)) {
+      throw new Error("Invalid term definition.")
+    }
+  }
+
+  // 12: `value` contains an `@type` entry
+  if ("@type" in value && Object.hasOwn(value, "@type")) {
+    let type = value["@type"]
+    if (typeof type !== "string") {
+      throw new Error("Invalid type mapping.")
+    }
+
+    type = expandIri(activeContext, type, false, true, localContext, defined)
+    if (type === "@json" || type === "@none") {
+      if (activeContext.processingMode && checkVersion(activeContext.processingMode, 1.0)) {
+        throw new Error("Invalid type mapping.")
+      }
+    } else if (type !== "@id" && type !== "@vocab" && !isAbsoluteIri(type)) {
+      throw new Error("Invalid type mapping.")
+    }
+
+    definition["@type"] = type
+  }
+
+  // 13: `value` contains an `@reverse` entry
+  if ("@reverse" in value && Object.hasOwn(value, "@reverse")) {
+    if ("@id" in value || "@nest" in value) {
+      throw new Error("Invalid reverse property.")
+    }
+    const reverse = value["@reverse"]
+    if (typeof reverse !== "string") {
+      throw new Error("Invalid IRI mapping.")
+    }
+    if (reverse.match(/^@[a-zA-Z]+$/)) {
+      // TODO: magic number of regex keyword
+      // TODO: warning
+      console.warn(`Terms beginning with "@" are reserved for future use.`)
+      return
+    }
+    const expandedReverse = expandIri(activeContext, reverse, false, true, localContext, defined)
+    if (!isAbsoluteIri(expandedReverse)) {
+      throw new Error("Invalid IRI mapping.")
+    }
+
+    if ("@container" in value) {
+      const container = value["@container"]
+      if (container !== "@set" && container !== "@index" && container !== null) {
+        throw new Error("Invalid reverse property.")
+      }
+      definition["@container"] = container === null ? null : [container]
+      definition["@reverse"] = true
+
+      activeContext.termDefinitions.set(term, definition)
+      defined.set(term, true)
+      return
+    }
+  }
+
+  // 14: `value` contains an `@id` entry with a value that does not equal to `term`
+  if ("@id" in value && Object.hasOwn(value, "@id") && value["@id"] !== term) {
+    const id = value["@id"]
+    if (id && id !== null) {
+      if (typeof id !== "string") {
+        throw new Error("Invalid IRI mapping.")
+      }
+      if (!Keywords.includes(id) && id.match(/^@[a-zA-Z]+$/)) {
+        // TODO: magic number of regex keyword
+        // TODO: warning
+        console.warn(`Terms beginning with "@" are reserved for future use.`)
+        return
+      }
+      const expandedId = expandIri(activeContext, id, false, true, localContext, defined)
+      definition["@id"] = expandedId
+
+      if (expandedId === "@context") {
+        throw new Error("Invalid keyword alias.")
+      }
+      if (!Keywords.includes(expandedId) && !isAbsoluteIri(expandedId)) {
+        throw new Error("Invalid IRI mapping.")
+      }
+
+      if (
+        (term.includes(":") && term.charAt(0) !== ":" && term.charAt(term.length - 1) !== ":") ||
+        term.includes("/")
+      ) {
+        defined.set(term, true)
+        if (expandIri(activeContext, term, false, true, localContext, defined) !== expandedId) {
+          throw new Error("Invalid IRI mapping.")
+        }
+      }
+
+      if (
+        !term.includes(":") &&
+        !term.includes("/") &&
+        simpleTerm &&
+        id.match(/[:\/\?#\[\]@]$/) !== null
+        // TODO: check (an IRI ending with a gen-delim character, or a blank node identifier)
+      ) {
+        definition["@prefix"] = true
+      }
+    }
+  } // 15: otherwise, if `term` contains a colon anywhere after the first character
+  else if (term.includes(":") && term.charAt(0) !== ":") {
+    const [prefix, suffix] = term.split(":")
+    if (localContext[prefix]) {
+      createTermDefinition(
+        activeContext,
+        localContext,
+        prefix,
+        defined,
+        baseURL,
+        termProtected,
+        overrideProtected,
+        remoteContexts,
+        validateScopedContext,
+      )
+      const prefixDefinition = activeContext.termDefinitions.get(prefix)
+      if (prefixDefinition) {
+        definition["@id"] = prefixDefinition["@id"] + suffix
+      } else {
+        definition["@id"] = term
+      }
+    } else {
+      definition["@id"] = term
+    }
+  } // 16: otherwise, if `term` contains a slash
+  else if (term.includes("/")) {
+    definition["@id"] = expandIri(activeContext, term, false, true, localContext, defined)
+    if (!isAbsoluteIri(definition["@id"])) {
+      throw new Error("Invalid IRI mapping.")
+    }
+  } // 17: otherwise, if `term` is `@type`
+  else if (term === "@type") {
+    definition["@id"] = "@type"
+  } // 18: otherwise, if `activeContext` has a vocabulary mapping
+  else {
+    if (activeContext.vocabularyMapping) {
+      definition["@id"] = activeContext.vocabularyMapping + term
+    } else {
+      throw new Error("Invalid IRI mapping.")
+    }
+  }
+
+  // 19: `value` contains an `@container` entry
+  if ("@container" in value && Object.hasOwn(value, "@container")) {
+    const container = value["@container"]
+    if (!container || container === null || !isContainer(container)) {
+      throw new Error("Invalid container mapping.")
+    }
+    definition["@container"] = Array.isArray(container) ? container : [container]
+    if (definition["@container"].includes("@type")) {
+      if (!definition["@type"]) {
+        definition["@type"] = "@id"
+      } else if (definition["@type"] !== "@id" && definition["@type"] !== "@vocab") {
+        throw new Error("Invalid type mapping.")
+      }
+    }
+  }
+
+  // 20: `value` contains an `@index` entry
+  if ("@index" in value && Object.hasOwn(value, "@index")) {
+    if (activeContext.processingMode && checkVersion(activeContext.processingMode, 1.0)) {
+      throw new Error("Invalid term definition.")
+    }
+    if (
+      !definition["@container"] ||
+      definition["@container"] === null ||
+      !definition["@container"].includes("@index")
+    ) {
+      throw new Error("Invalid term definition.")
+    }
+
+    const index = value["@index"]!
+    const expandedIndex = expandIri(activeContext, index, false, true, localContext, defined)
+    if (!isAbsoluteIri(expandedIndex)) {
+      throw new Error("Invalid term definition.")
+    }
+    definition["@index"] = index
+  }
+
+  // 21: `value` contains an `@context` entry
+  if ("@context" in value && Object.hasOwn(value, "@context")) {
+    if (activeContext.processingMode && checkVersion(activeContext.processingMode, 1.0)) {
+      throw new Error("Invalid term definition.")
+    }
+
+    const context = value["@context"]!
+    if (typeof context !== "object") {
+      throw new Error("Invalid term definition.")
+    }
+    try {
+      processContext(activeContext, context, baseURL!, structuredClone(remoteContexts), true, false, false)
+    } catch {
+      throw new Error("Invalid scoped context.")
+    }
+
+    definition["@context"] = context
+    definition["@base"] = baseURL!
+  }
+
+  // 22: `value` contains an `@language` entry and does not contain an `@type` entry
+  // 23: `value` contains an `@direction` entry and does not contain an `@type` entry
+  // 24: `value` contains an `@nest` entry
+  // 25: `value` contains an `@prefix` entry
+  // 26: `value` contains any entry other than `@id`, `@reverse`, `@container`, `@context`, `@direction`, `@index`,
+  //     `@language`, `@nest`, `@prefix`, `@protected`, or `@type`
+
+  // 27: `overrideProtected` is `false` and `previousDefinition` exists and is protected
 }
 
 /**
@@ -472,11 +739,13 @@ function createTermDefinition(
  * Although normalizing language tags is optional, the inverse context creates entries based on normalized language
  * tags, so that the proper term can be selected regardless of representation.
  *
- * @param activeContext The active context.
+ * @param {ActiveContext} activeContext The active context.
+ *
+ * @return {InverseContext} The inverse context.
  */
 function createInverseContext(
-  activeContext: string,
-) {
+  activeContext: ActiveContext,
+): InverseContext {
   // Procedure:
   //
   // 1. Initialize `result` to an empty map.
@@ -568,6 +837,127 @@ function createInverseContext(
   //                  processed.
   //
   // 4. Return `result`.
+
+  // 1 & 2: initialize `result` and `defaultLanguage`
+  const result: InverseContext = new Map()
+  const defaultLanguage = activeContext.defaultLanguage?.toLowerCase() || "@none"
+
+  // 3: iterate over all term definitions in the active context
+  const keys = Object.keys(activeContext.termDefinitions).sort((a, b) => a.length - b.length || a.localeCompare(b))
+  for (const key of keys) {
+    // 3.1: skip term definitions that are `null`
+    const definition = activeContext.termDefinitions.get(key)
+    if (definition === undefined || definition === null) continue
+
+    // 3.2: initialize `container`
+    let container = "@none"
+    const containerMapping = definition["@container"]
+    if (containerMapping && containerMapping !== null) {
+      container = Array.isArray(containerMapping) ? containerMapping.sort().join("") : containerMapping
+    }
+
+    // 3.3 & 3.4: initialize `var` (using `variable` to avoid conflicts with the `var` keyword)
+    const variable = definition["@id"]
+    if (!result.has(variable)) {
+      const emptyContainerMap: ContainerMap = new Map()
+      result.set(variable, emptyContainerMap)
+    }
+
+    // 3.5 & 3.6: initialize and process the container map
+    const containerMap = result.get(variable)!
+    if (!containerMap.has(container)) {
+      const emptyLanguageMap: LanguageMap = new Map()
+      const emptyTypeMap: TypeMap = new Map()
+      const defaultAnyMap: AnyMap = new Map([["@none", key]])
+
+      containerMap.set(
+        container,
+        new Map([
+          ["@language", emptyLanguageMap],
+          ["@type", emptyTypeMap],
+          ["@any", defaultAnyMap],
+        ]),
+      )
+    }
+
+    // 3.7 - 3.9: initialize the language map, and the type map
+    const typeLanguageMap = containerMap.get(container)! as TypeLanguageMap
+    const languageMap = typeLanguageMap.get("@language")! as LanguageMap
+    const typeMap = typeLanguageMap.get("@type")! as TypeMap
+
+    // 3.10: this is a reverse property
+    if (definition["@reverse"]) {
+      if (!typeMap.has("@reverse")) {
+        typeMap.set("@reverse", key)
+      }
+    } // 3.11: this term definition has a type mapping which is `@none`
+    else if (definition["@type"] && definition["@type"] === "@none") {
+      if (!languageMap.has("@any")) {
+        languageMap.set("@any", key)
+      }
+      if (!typeMap.has("@any")) {
+        typeMap.set("@any", key)
+      }
+    } // 3.12: this term definition has a type mapping (other than `@none`)
+    else if (definition["@type"]) {
+      if (!typeMap.has(definition["@type"])) {
+        typeMap.set(definition["@type"], key)
+      }
+    } // 3.13: this term definition has both a language mapping and a direction mapping
+    else if (definition["@language"] && definition["@direction"]) {
+      let langDir: string
+      if (definition["@language"] !== null && definition["@direction"] !== null) {
+        langDir = `${definition["@language"]}_${definition["@direction"]}`.toLowerCase()
+      } else if (definition["@language"] !== null) {
+        langDir = definition["@language"].toLowerCase()
+      } else if (definition["@direction"]) {
+        langDir = `_${definition["@direction"]}`
+      } else {
+        langDir = "@null"
+      }
+      if (!languageMap.has(langDir)) {
+        languageMap.set(langDir, key)
+      }
+    } // 3.14: this term definition has a language mapping (might be `null`)
+    else if (definition["@language"]) {
+      const language = definition["@language"] === null ? "@null" : definition["@language"].toLowerCase()
+      if (!languageMap.has(language)) {
+        languageMap.set(language, key)
+      }
+    } // 3.15: this term definition has a direction mapping (might be `null`)
+    else if (definition["@direction"]) {
+      const direction = definition["@direction"] === null ? "@none" : `_${definition["@direction"]}`
+      if (!languageMap.has(direction)) {
+        languageMap.set(direction, key)
+      }
+    } // 3.16: this active context has a default base direction
+    else if (activeContext.defaultBaseDirection) {
+      const langDir = `${defaultLanguage}_${activeContext.defaultBaseDirection}`.toLowerCase()
+      if (!languageMap.has(langDir)) {
+        languageMap.set(langDir, key)
+      }
+      if (!languageMap.has("@none")) {
+        languageMap.set("@none", key)
+      }
+      if (!typeMap.has("@none")) {
+        typeMap.set("@none", key)
+      }
+    } // 3.17: otherwise
+    else {
+      if (!languageMap.has(defaultLanguage)) {
+        languageMap.set(defaultLanguage, key)
+      }
+      if (!languageMap.has("@none")) {
+        languageMap.set("@none", key)
+      }
+      if (!typeMap.has("@none")) {
+        typeMap.set("@none", key)
+      }
+    }
+  }
+
+  // 4: Return `result`
+  return result
 }
 
 /**
@@ -585,19 +975,20 @@ function createInverseContext(
  * by choosing the lexicographically least term. Note that these ties are resolved automatically because they were
  * previously resolved when the Inverse Context Creation algorithm was used to create the inverse context.
  *
- * @param activeContext The active context.
- * @param varKeywordIri The keyword or IRI var to find a term for.
- * @param containers An array of preferred container mappings.
- * @param typeLanguage The type or language to find a term for.
- * @param preferredValues An array of preferred values for the type or language.
+ * @param {ActiveContext} activeContext The active context.
+ * @param {string} varKeywordIri The keyword or IRI var to find a term for.
+ * @param {Array<string>} containers An ordered list of preferred container mapping.
+ * @param {string} typeLanguage Whether to look for a term with a matching type mapping or language mapping.
+ * @param {Array<string>} preferredValues An ordered list of preferred values for the type mapping or language mapping
+ * to look for.
  */
 function selectTerm(
-  activeContext: string,
+  activeContext: ActiveContext,
   varKeywordIri: string,
-  containers: string[],
+  containers: Array<string>,
   typeLanguage: string,
-  preferredValues: string[],
-) {
+  preferredValues: Array<string>,
+): Term | null {
   // Procedure:
   //
   // 1. If the `activeContext` has a `null` inverse context, set `inverseContext` in `activeContext` to the result of
@@ -618,4 +1009,32 @@ function selectTerm(
   //                `valueMap`.
   //
   // 5. No matching term has been found. Return `null`.
+
+  // 1: ensure that the active context has an inverse context
+  if (activeContext.inverseContext === null) {
+    activeContext.inverseContext = createInverseContext(activeContext)
+  }
+
+  // 2 & 3: initialize inverse context and container map
+  const inverseContext = activeContext.inverseContext as Map<string, ContainerMap>
+  const containerMap = inverseContext.get(varKeywordIri)
+
+  // 4: iterate over all containers
+  for (const container of containers) {
+    // 4.1: `container` is not an entry of `containerMap`
+    if (!containerMap || !containerMap.has(container)) continue
+
+    // 4.2 & 4.3: initialize `typeLanguageMap` and `valueMap`
+    const typeLanguageMap = containerMap.get(container)! as TypeLanguageMap
+    const valueMap = typeLanguageMap.get(typeLanguage) as LanguageMap | TypeMap | AnyMap | undefined | null
+
+    // 4.4: iterate over all preferred values
+    for (const item of preferredValues) {
+      if (!valueMap || valueMap === null || !valueMap.has(item)) continue
+      return valueMap.get(item)!
+    }
+  }
+
+  // 5: no matching term has been found
+  return null
 }

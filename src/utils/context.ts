@@ -1,38 +1,12 @@
-import { ContextDefinition } from "../types/context.ts"
-import { Context } from "../types/keyword.ts"
-
 /**
- * Retrieve the value for the given active context and type, `null` if `none` is set, or `undefined` if `none` is set
- * and `type` is `@context`.
+ * Check the processing mode (version) of a context.
  *
- * @param {Context} context The active context to retrieve the value from.
- * @param {string} key The key to retrieve the value for.
- * @param {string} [type] The type to retrieve the value for.
+ * @param {string | number} version The version string or number in the context.
+ * @param {number} expect The expected version number.
  *
- * @returns {string | null | undefined} The value for the given key, `null` if `none` is set, or `undefined` if `none`
- * is set and `type` is `@context`.
+ * @returns {boolean} `true` if the version is equal to the expected version, `false` otherwise.
  */
-export function getContextValue(
-  context: ContextDefinition,
-  key: string,
-  type?: string,
-) {
-  // invalid key
-  if (key === null) {
-    if (type === "@context") {
-      return undefined
-    }
-    return null
-  }
-
-  // context has the key
-  if (context[key] !== undefined) {
-    const entry = context[key]
-    if (type === undefined) {
-      return entry
-    }
-    if (entry && Object.prototype.hasOwnProperty.call(entry, type)) {
-      return entry[type]
-    }
-  }
+export function checkVersion(version: string | number, expect: number): boolean {
+  // the input version could be a string in the form of "1.1" or "json-ld-1.1"
+  return parseFloat(version.toString().replace(/json-ld-/, "")) === expect
 }

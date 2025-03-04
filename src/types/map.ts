@@ -1,5 +1,5 @@
 import { IRI, IRICompacted, IRIReference, Term } from "./basic.ts"
-import { JsonPrimitive, Null, OneOrMany } from "./document.ts"
+import { JsonPrimitive, OneOrMany } from "./document.ts"
 import { ListObject, NodeObject, SetObject, ValueObject } from "./object.ts"
 
 /**
@@ -18,7 +18,7 @@ import { ListObject, NodeObject, SetObject, ValueObject } from "./object.ts"
  * @see https://www.w3.org/TR/json-ld11/#string-internationalization
  */
 export interface LanguageMap {
-  [key: string]: Null | OneOrMany<string>
+  [key: string]: OneOrMany<string> | null
 }
 
 /**

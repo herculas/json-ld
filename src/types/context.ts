@@ -1,5 +1,4 @@
 import { IRI, IRICompacted, IRIReference, Term } from "./basic.ts"
-import { Null } from "./document.ts"
 import {
   Base,
   Container,
@@ -55,7 +54,7 @@ export interface ContextDefinition {
     "@protected"?: Protected
   }
   [key: IRI | IRICompacted]:
-    | Null
+    | null
     | IRI
     | IRICompacted
     | Term
@@ -112,7 +111,7 @@ export interface ContextDefinition {
  */
 type ExpandedTermDefinition =
   & {
-    "@type"?: "@id" | "@json" | "@vocab" | "@none" | IRI | IRICompacted | Term | Null
+    "@type"?: "@id" | "@json" | "@vocab" | "@none" | IRI | IRICompacted | Term | null
     "@language"?: Language
     "@index"?: Index
     "@context"?: ContextDefinition
@@ -121,10 +120,92 @@ type ExpandedTermDefinition =
     "@protected"?: Protected
   }
   & ({
-    "@id"?: Id | Null
+    "@id"?: Id | null
     "@nest"?: "@nest" | Term
     "@container"?: Container
   } | {
     "@reverse": Reverse
-    "@container"?: "@set" | "@index" | Null
+    "@container"?: "@set" | "@index" | null
   })
+
+/**
+ * An inverse context is essentially a reverse lookup table that maps container mapping, type mappings, and language
+ * mappings to a simple term for a given active context. An inverse context only needs to be generated for an active
+ * context if it is being used for compaction.
+ */
+export type InverseContext = Map<string, ContainerMap> | null
+export type ContainerMap = Map<string, TypeLanguageMap>
+export type TypeLanguageMap = Map<string, LanguageMap | TypeMap | AnyMap>
+export type LanguageMap = Map<string, Term>
+export type TypeMap = Map<string, Term>
+export type AnyMap = Map<string, Term>
+
+/**
+ * An active context is a context that is used to resolve terms while the processing algorithm is running. An active
+ * context consists of:
+ *
+ * - the active term definitions which specify how keys and values have to be interpreted (array of term definitions),
+ * - the current base IRI (IRI),
+ * - the original base URL (IRI),
+ * - an inverse context (inverse context),
+ * - an optional vocabulary mapping (IRI),
+ * - an optional default language (string),
+ * - an optional default direction ("ltr" or "rtl"), and
+ * - an optional previous context (context), used when a non-propagated context is defined.
+ *
+ * @see https://www.w3.org/TR/json-ld11/#dfn-active-context
+ * @see https://www.w3.org/TR/json-ld11-api/#context-processing-algorithm
+ */
+export interface ActiveContext {
+  termDefinitions: Map<Term, TermDefinition>
+  baseIRI: IRI
+  originalBaseIRI: IRI
+  inverseContext: InverseContext
+  vocabularyMapping?: IRI
+  defaultLanguage?: Language
+  defaultBaseDirection?: Direction
+  previousContext?: ContextDefinition
+  processingMode?: Version
+}
+
+/**
+ * A term definition is an array in a context, where the key defines a term which may be used within a map as a key,
+ * type, or elsewhere that a string is interpreted as a vocabulary item. Its value is either a string (simple term
+ * definition), expanding to an IRI, or a map (expanded term definition).
+ *
+ * A term definition can not be used to map a term to an IRI, but also to map a term to a keyword, in which case it is
+ * referred to as a keyword alias. Each term definition consists of:
+ *
+ * - an IRI mapping (IRI),
+ * - a prefix flag (boolean),
+ * - a protected flag (boolean),
+ * - a reverse property flag (boolean),
+ * - an optional base URL (IRI),
+ * - an optional context (context),
+ * - an optional container mapping (array of strings),
+ * - an optional direction mapping ("ltr" or "rtl"),
+ * - an optional index mapping (string),
+ * - an optional language mapping (string),
+ * - an optional nest value (string), and
+ * - an optional type mapping (IRI).
+ *
+ * A term definition cannot only be used to map a term to an IRI, but also to map a term to a keyword, in which case it
+ * is referred to as a keyword alias.
+ *
+ * @see https://www.w3.org/TR/json-ld11/#dfn-term-definition
+ * @see https://www.w3.org/TR/json-ld11-api/#context-processing-algorithm
+ */
+export type TermDefinition = {
+  "@id": IRI
+  "@prefix": boolean
+  "@protected": boolean
+  "@reverse": boolean
+  "@base": IRI
+  "@context"?: ContextDefinition
+  "@container"?: Array<string> | null
+  "@direction"?: Direction
+  "@index"?: Index
+  "@language"?: Language
+  "@nest"?: Term
+  "@type"?: IRI | IRICompacted | Term
+}

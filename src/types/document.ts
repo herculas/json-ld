@@ -2,14 +2,6 @@ import { Context, Graph } from "./keyword.ts"
 import { NodeObject } from "./object.ts"
 
 /**
- * The value `null` is used to indicate the lack of a value. It can be used interchangeably with the JavaScript `null`
- * value.
- *
- * @see https://infra.spec.whatwg.org/#nulls
- */
-export type Null = null
-
-/**
  * One or multiple values of type `T`.
  */
 export type OneOrMany<T> = T | Array<T>
@@ -28,12 +20,12 @@ export type OneOrWrapped<T> = T | SingleWrapped<T>
  * A JSON primitive also known as a scalar value, is a value that is not an object or array. It is a value that can be
  * represented as a single string, number, boolean, or null value.
  */
-export type JsonPrimitive = string | number | boolean | Null
+export type JsonPrimitive = string | number | boolean | null
 
 export interface JsonArray extends Array<JsonValue> {}
 
 export interface JsonObject {
-  [key: string]: JsonValue | Null
+  [key: string]: JsonValue | null
 }
 
 type JsonValue = JsonPrimitive | JsonObject | JsonArray

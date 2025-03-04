@@ -1,3 +1,6 @@
+import { Term } from "../types/basic.ts"
+import { ActiveContext, ContextDefinition } from "../types/context.ts"
+
 /**
  * This algorithm expands a JSON-LD document, such that all context definitions are removed, all terms and compact IRIs
  * are expanded to IRIs, blank node identifiers, or keywords and all JSON-LD values are expressed in arrays in expanded
@@ -435,14 +438,14 @@ function expand(
  * @param [localContext] the local context to use.
  * @param [defined] the map defined to use.
  */
-function expandIri(
-  activeContext: string,
-  value: string,
+export function expandIri(
+  activeContext: ActiveContext,
+  value: Term,
   documentRelative: boolean = false,
   vocab: boolean = false,
-  localContext: string | null = null,
-  defined: string | null = null,
-) {
+  localContext: ContextDefinition | null = null,
+  defined: Map<Term, boolean> | null = null,
+): Term {
   // Procedure:
   //
   // 1. If `value` is a keyword or `null`, return `value` as is.

@@ -1,9 +1,12 @@
+import { IRI } from "../types/basic.ts"
+import { Container } from "../types/keyword.ts"
+
 /**
  * Check whether the given value is a subject with properties.
  *
  * @param {unknown} value The value to check.
  *
- * @returns {boolean} Return `true` if the value is a subject; otherwise `false`.
+ * @returns {boolean} `true` if the value is a subject; otherwise `false`.
  */
 export function isSubject(value: unknown): value is Record<string, unknown> {
   // A value is a subject of all of the following conditions are met:
@@ -29,7 +32,7 @@ export function isSubject(value: unknown): value is Record<string, unknown> {
  *
  * @param {unknown} value The value to check.
  *
- * @returns {boolean} Return `true` if the value is a subject reference; otherwise `false`.
+ * @returns {boolean} `true` if the value is a subject reference; otherwise `false`.
  */
 export function isSubjectRef(value: unknown): value is Record<string, unknown> {
   // A value is a subject reference if all of the following conditions are met:
@@ -49,7 +52,7 @@ export function isSubjectRef(value: unknown): value is Record<string, unknown> {
  *
  * @param {unknown} value The value to check.
  *
- * @returns {boolean} Return `true` if the value is a value object; otherwise `false`.
+ * @returns {boolean} `true` if the value is a value object; otherwise `false`.
  */
 export function isValueObject(value: unknown): value is Record<string, unknown> {
   // A value is a value object if all of the following conditions are met:
@@ -68,7 +71,7 @@ export function isValueObject(value: unknown): value is Record<string, unknown> 
  *
  * @param {unknown} value The value to check.
  *
- * @returns {boolean} Return `true` if the value is a list object; otherwise `false`.
+ * @returns {boolean} `true` if the value is a list object; otherwise `false`.
  */
 export function isListObject(value: unknown): value is Record<string, unknown> {
   // A value is a list object if all of the following conditions are met:
@@ -87,7 +90,7 @@ export function isListObject(value: unknown): value is Record<string, unknown> {
  *
  * @param {unknown} value The value to check.
  *
- * @returns {boolean} Return `true` if the value is a graph object; otherwise `false`.
+ * @returns {boolean} `true` if the value is a graph object; otherwise `false`.
  */
 export function isGraphObject(value: unknown): value is Record<string, unknown> {
   // A value is a graph object if all of the following conditions are met:
@@ -109,7 +112,7 @@ export function isGraphObject(value: unknown): value is Record<string, unknown> 
  *
  * @param {unknown} value The value to check.
  *
- * @returns {boolean} Return `true` if the value is a simple graph; otherwise `false`.
+ * @returns {boolean} `true` if the value is a simple graph; otherwise `false`.
  */
 export function isSimpleGraph(value: unknown): value is Record<string, unknown> {
   // A value is a simple graph if all of the following conditions are met:
@@ -126,7 +129,7 @@ export function isSimpleGraph(value: unknown): value is Record<string, unknown> 
  *
  * @param {unknown} value The value to check.
  *
- * @returns {boolean} Return `true` if the value is a blank node; otherwise `false`.
+ * @returns {boolean} `true` if the value is a blank node; otherwise `false`.
  */
 export function isBlankNode(value: unknown): value is Record<string, unknown> {
   // A value is a blank node if all of the following conditions are met:
@@ -145,5 +148,60 @@ export function isBlankNode(value: unknown): value is Record<string, unknown> {
     }
     return keys.length === 0 || keys.some((key) => !["@value", "@set", "@list"].includes(key))
   }
+  return false
+}
+
+/**
+ * Check whether the given value is an absolute IRI or a blank node identifier.
+ *
+ * @param {string} value The value to check.
+ *
+ * @returns {boolean} `true` if the value is an absolute IRI or a blank node identifier; otherwise `false`.
+ */
+export function isAbsoluteIri(value: string): value is IRI {
+  // URL.canParse(value)
+  const regex = /^([A-Za-z][A-Za-z0-9+-.]*|_):[^\s]*$/
+  return regex.test(value)
+}
+
+/**
+ * Check whether the given value is a container.
+ *
+ * @param {string | Array<string>} value The value to check.
+ *
+ * @returns {boolean} `true` if the value is a container; otherwise `false`.
+ */
+export function isContainer(value: string | Array<string> | null): value is Container {
+  // case 1
+  if (value === null) {
+    return true
+  }
+
+  // case 2
+  if (typeof value === "string") {
+    return ["@graph", "@id", "@index", "@language", "@list", "@set", "@type"].includes(value)
+  }
+
+  if (Array.isArray(value)) {
+    // case 3
+    if (value.length === 1) {
+      return ["@graph", "@id", "@index", "@language", "@list", "@set", "@type"].includes(value[0])
+    }
+
+    // case 4
+    if (
+      (value.length === 2 && value.includes("@graph")) ||
+      (value.length === 3 && value.includes("@graph") && value.includes("@set"))
+    ) {
+      return value.includes("@id") || value.includes("@index")
+    }
+
+    // case 5
+    // TODO: 2 elements only?
+    if (value.includes("@set")) {
+      return value.every((keyword) => ["@set", "@index", "@id", "@graph", "@type", "@language"].includes(keyword))
+    }
+  }
+
   return false
 }
